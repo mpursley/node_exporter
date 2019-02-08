@@ -64,16 +64,16 @@ workld_media_wear_indic
 workload_minutes
 SMARTMONATTRS
 )"
-smartmon_attrs="$(echo ${smartmon_attrs} | xargs | tr ' ' '|')"
+smartmon_attrs="$(echo "${smartmon_attrs}" | xargs | tr ' ' '|')"
 
 parse_smartctl_attributes() {
   local disk="$1"
   local disk_type="$2"
   local labels="disk=\"${disk}\",type=\"${disk_type}\""
-  local vars="$(echo "${smartmon_attrs}" | xargs | tr ' ' '|')"
+  #local vars="$(echo "${smartmon_attrs}" | xargs | tr ' ' '|')"
   sed 's/^ \+//g' |
     awk -v labels="${labels}" "${parse_smartctl_attributes_awk}" 2>/dev/null |
-    tr A-Z a-z |
+    tr '[:lower:]' '[:upper:]'|
     grep -E "(${smartmon_attrs})"
 }
 
@@ -81,15 +81,15 @@ parse_smartctl_scsi_attributes() {
   local disk="$1"
   local disk_type="$2"
   local labels="disk=\"${disk}\",type=\"${disk_type}\""
-  while read line; do
+  while read -r line; do
     attr_type="$(echo "${line}" | tr '=' ':' | cut -f1 -d: | sed 's/^ \+//g' | tr ' ' '_')"
     attr_value="$(echo "${line}" | tr '=' ':' | cut -f2 -d: | sed 's/^ \+//g')"
     case "${attr_type}" in
     number_of_hours_powered_up_) power_on="$(echo "${attr_value}" | awk '{ printf "%e\n", $1 }')" ;;
-    Current_Drive_Temperature) temp_cel="$(echo ${attr_value} | cut -f1 -d' ' | awk '{ printf "%e\n", $1 }')" ;;
-    Blocks_read_from_cache_and_sent_to_initiator_) lbas_read="$(echo ${attr_value} | awk '{ printf "%e\n", $1 }')" ;;
-    Accumulated_start-stop_cycles) power_cycle="$(echo ${attr_value} | awk '{ printf "%e\n", $1 }')" ;;
-    Elements_in_grown_defect_list) grown_defects="$(echo ${attr_value} | awk '{ printf "%e\n", $1 }')" ;;
+    Current_Drive_Temperature) temp_cel="$(echo "${attr_value}" | cut -f1 -d' ' | awk '{ printf "%e\n", $1 }')" ;;
+    Blocks_read_from_cache_and_sent_to_initiator_) lbas_read="$(echo "${attr_value}" | awk '{ printf "%e\n", $1 }')" ;;
+    Accumulated_start-stop_cycles) power_cycle="$(echo "${attr_value}" | awk '{ printf "%e\n", $1 }')" ;;
+    Elements_in_grown_defect_list) grown_defects="$(echo "${attr_value}" | awk '{ printf "%e\n", $1 }')" ;;
     esac
   done
   [ ! -z "$power_on" ] && echo "power_on_hours_raw_value{${labels},smart_id=\"9\"} ${power_on}"
@@ -103,7 +103,7 @@ parse_smartctl_info() {
   local -i smart_available=0 smart_enabled=0 smart_healthy=0
   local disk="$1" disk_type="$2"
   local model_family='' device_model='' serial_number='' fw_version='' vendor='' product='' revision='' lun_id=''
-  while read line; do
+  while read -r line; do
     info_type="$(echo "${line}" | cut -f1 -d: | tr ' ' '_')"
     info_value="$(echo "${line}" | cut -f2- -d: | sed 's/^ \+//g' | sed 's/"/\\"/')"
     case "${info_type}" in
@@ -167,8 +167,8 @@ fi
 device_list="$(/usr/sbin/smartctl --scan-open | awk '/^\/dev/{print $1 "|" $3}')"
 
 for device in ${device_list}; do
-  disk="$(echo ${device} | cut -f1 -d'|')"
-  type="$(echo ${device} | cut -f2 -d'|')"
+  disk="$(echo "${device}" | cut -f1 -d'|')"
+  type="$(echo "${device}" | cut -f2 -d'|')"
   active=1
   echo "smartctl_run{disk=\"${disk}\",type=\"${type}\"}" "$(TZ=UTC date '+%s')"
   # Check if the device is in a low-power mode
